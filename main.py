@@ -1,45 +1,65 @@
-from datetime import datetime, timedelta
+from collections import UserDict
 import re
+from datetime import datetime, timedelta
+
 
 class Field:
+    def __init__(self, value=None):
+        self._value = value
+
+    @property
+    def value(self):
+        return self._value
+
+    @value.setter
+    def value(self, new_value):
+        self._value = new_value
+
+    def __str__(self):
+        return str(self._value)
+
+
+class Name(Field):
     pass
+
 
 class Phone(Field):
     def __init__(self, value):
+        super().__init__(value)
         self.value = value
 
-    @property
-    def value(self):
-        return self._value
+    @Field.value.setter
+    def value(self, new_value):
+        if not self.validate(new_value):
+            raise ValueError("Phone number must be 10 digits")
+        self._value = new_value
 
-    @value.setter
-    def value(self, value):
-        if re.match(r"^\+\d{10,15}$", value):
-            self._value = value
-        else:
-            raise ValueError("Invalid phone number format")
+    @staticmethod
+    def validate(phone):
+        return re.fullmatch(r'\d{10}', phone) is not None
+
 
 class Birthday(Field):
-    def __init__(self, value):
-        self.value = value
+    @Field.value.setter
+    def value(self, new_value):
+        if not self.validate(new_value):
+            raise ValueError("Birthday must be in YYYY-MM-DD format")
+        self._value = new_value
 
-    @property
-    def value(self):
-        return self._value
-
-    @value.setter
-    def value(self, value):
+    @staticmethod
+    def validate(birthday):
         try:
-            datetime.strptime(value, '%Y-%m-%d')
-            self._value = value
+            datetime.strptime(birthday, "%Y-%m-%d")
+            return True
         except ValueError:
-            raise ValueError("Invalid date format. Use YYYY-MM-DD")
+            return False
+
 
 class Record:
-    def __init__(self, name, phone=None, birthday=None):
-        self.name = name
-        self.phones = [Phone(phone)] if phone else []
-        self.birthday = Birthday(birthday) if birthday else None
+    def __init__(self, name, birthday=None):
+        self.name = Name(name)
+        self.birthday = Birthday(birthday)
+        self.phones = []
 
     def add_phone(self, phone):
         self.phones.append(Phone(phone))
@@ -48,27 +68,40 @@ class Record:
         self.phones = [p for p in self.phones if p.value != phone]
 
     def edit_phone(self, old_phone, new_phone):
-        for p in self.phones:
-            if p.value == old_phone:
-                p.value = new_phone
-                break
+        for phone in self.phones:
+            if phone.value == old_phone:
+                phone.value = new_phone
+                return
+        raise ValueError("Phone number not found")
+
+    def find_phone(self, phone):
+        return next((p for p in self.phones if p.value == phone), None)
 
     def days_to_birthday(self):
-        if not self.birthday:
-            return "Birthday not set"
+        if self.birthday.value is None:
+            return None
         today = datetime.now()
-        next_birthday = datetime.strptime(f"{today.year}-{self.birthday.value[5:]}", '%Y-%m-%d')
-        if next_birthday < today:
-            next_birthday = datetime.strptime(f"{today.year + 1}-{self.birthday.value[5:]}", '%Y-%m-%d')
-        return (next_birthday - today).days
+        birthday_date = datetime.strptime(self.birthday.value, "%Y-%m-%d").replace(year=today.year)
+        if birthday_date < today:
+            birthday_date = birthday_date.replace(year=today.year + 1)
+        return (birthday_date - today).days
 
-class AddressBook:
-    def __init__(self):
-        self.records = []
+    def __str__(self):
+        return f"Contact name: {self.name.value}, phones: {'; '.join(p.value for p in self.phones)}"
 
+
+class AddressBook(UserDict):
     def add_record(self, record):
-        self.records.append(record)
+        self.data[record.name.value] = record
+
+    def find(self, name):
+        return self.data.get(name)
+
+    def delete(self, name):
+        if name in self.data:
+            del self.data[name]
 
     def iterator(self, n):
-        for i in range(0, len(self.records), n):
-            yield self.records[i:i + n]
+        records = list(self.data.values())
+        for i in range(0, len(records), n):
+            yield records[i:i + n]
