@@ -5,18 +5,18 @@ from datetime import datetime, timedelta
 
 class Field:
     def __init__(self, value=None):
-        self._value = value
+        self.__value = value
 
     @property
     def value(self):
-        return self._value
+        return self.__value
 
     @value.setter
     def value(self, new_value):
-        self._value = new_value
+        self.__value = new_value
 
     def __str__(self):
-        return str(self._value)
+        return str(self.__value)
 
 
 class Name(Field):
@@ -32,7 +32,7 @@ class Phone(Field):
     def value(self, new_value):
         if not self.validate(new_value):
             raise ValueError("Phone number must be 10 digits")
-        self._value = new_value
+        self._Field__value = new_value
 
     @staticmethod
     def validate(phone):
@@ -44,7 +44,7 @@ class Birthday(Field):
     def value(self, new_value):
         if not self.validate(new_value):
             raise ValueError("Birthday must be in YYYY-MM-DD format")
-        self._value = new_value
+        self._Field__value = new_value
 
     @staticmethod
     def validate(birthday):
@@ -58,7 +58,7 @@ class Birthday(Field):
 class Record:
     def __init__(self, name, birthday=None):
         self.name = Name(name)
-        self.birthday = Birthday(birthday)
+        self.birthday = Birthday(birthday) if birthday else None
         self.phones = []
 
     def add_phone(self, phone):
